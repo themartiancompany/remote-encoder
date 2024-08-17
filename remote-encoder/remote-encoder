@@ -68,7 +68,7 @@ _ytencode_options(){
 _remote_recorder() {
   local \
     _target_host="${1}" \
-    _encader_app="${2}" \
+    _encoder_app="${2}" \
     _in="${3}" \
     _out="${4}" \
     _encoder_opts=() \
