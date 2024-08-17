@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: AGPL-3.0
+
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	  "env")")"
+_lib="${_bin}/../lib"
+_share="${_bin}/../share"
+source \
+  "${_lib}/libcrash-bash/crash-bash"
+
+# Check all required programs
+# are available
+_requirements() {
+  _check_cmd \
+    'dynssh' \
+    'dynssh'
+  _check_cmd \
+    'rsync' \
+    'rsync'
+}
+
+# shellcheck disable=SC2034
+_global_variables() {
+  encoding_date=""
+  target_host=""
+  encoder_app=""
+  in_file=""
+  out_file=""
+  color=""
+  quiet=""
+}
+
+_dynssh_options(){
+  _dynssh_opts+=(
+    -t
+      "${_target_host}"
+  )
+  _rsync_opts+=(
+    # -az
+  )
+}
+
+_ytencode_options(){
+  _in_tmp="${HOME}/storage/movies/$( \
+    basename \
+      "${_out}").remote.in.mp4"
+  _tmp="${HOME}/storage/movies/$( \
+    basename \
+      "${_out}").remote.mp4"
+  _encoder+=(
+    "${_encoder_app}"
+  )
+  _encoder_opts+=(
+    -m
+      "fake" 
+  )
+}
+
+# Remote encoder.
+# $1: target host
+# $2: input video file
+# $3: output video file
+_remote_recorder() {
+  local \
+    _target_host="${1}" \
+    _encader_app="${2}" \
+    _in="${3}" \
+    _out="${4}" \
+    _encoder_opts=() \
+    _encoder=() \
+    _rsync_opts=() \
+    _dynssh_opts=() \
+    _in_tmp \
+    _tmp
+  if [[ "${quiet}" != "y" ]]; then
+    _encoder_opts+=(
+      -v
+    )
+    _dynssh_opts+=(
+      -v
+    )
+    _rsync_opts+=(
+      -v
+    )
+  fi
+  _dynssh_options
+  "_${_encoder_app}_options"
+  _msg_info \
+    "running dynssh with '${_dynssh_opts[*]}'"
+  dynssh \
+    "${_dynssh_opts[@]}" \
+    -C \
+      rsync -- \
+    "${_rsync_opts[@]}" \
+    "${_in}" \
+    "${_target_host}:${_in_tmp}"
+  dynssh \
+    "${_dynssh_opts[@]}" -- \
+    "${_target_host}" \
+    "${_encoder[@]}" \
+      "${_encoder_opts[@]}" \
+      "${_in_tmp}" \
+      "${_tmp}"
+  dynssh \
+    "${_dynssh_opts[@]}" \
+    -C \
+      rsync -- \
+    "${_rsync_opts[@]}" \
+    "${_target_host}:${_tmp}" \
+    "${_out}"
+  dynssh \
+    "${_dynssh_opts[@]}" -- \
+    "${_target_host}" \
+    rm \
+      "${_in_tmp}" \
+      "${_tmp}"
+  _msg_info \
+    "encoding ended, quitting."
+}
+
+# Set defaults and, if present, overrides
+# from program command line option parameters
+_set_overrides() {
+  _set_override \
+    "target" \
+    "host" \
+    ""
+  if [[ "${target_host}" == "" ]]; then
+    _msg_error \
+      "You must specify an host."
+  fi
+  _set_override \
+    "encoding" \
+    "date" \
+    "$(_get_date_human)"
+  _set_override \
+    "encoder" \
+    "app" \
+    "ytencode"
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+}
+
+# Shows configuration options.
+_show_config() {
+  _msg_info "${app_name} configuration"
+  _msg_info "            Encoding date:   $(_get "encoding" "date")"
+  _msg_info "              Target host:   $(_get "target" "host")"
+  _msg_info "              Encoder app:   $(_get "encoder" "app")"
+  _msg_info "                  In file:   $(_get "in" "file")"
+  _msg_info "              Output file:   $(_get "out" "file")"
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+  local \
+    _usage_text
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _usage_text << \
+        ENDUSAGETEXT || true
+
+Remote recorder.
+
+Usage:
+  $(_get "app" "name")
+    [options]
+    <in_file>
+    <out_file>
+  options:
+     -t <target_host>     Target host.
+                          Default: $(_get "target" "host")
+     -p <encoder_app>    Encoder application to use.
+                          Default: $(_get "encoder" "app")
+     -h                   This message.
+     -v                   Enable verbose output
+ENDUSAGETEXT
+  _printf \
+    '%s\n' \
+    "${_usage_text}"
+  exit \
+    "${1}"
+}
+
+_globals
+_global_variables
+_requirements
+# shellcheck disable=SC2004
+# shellcheck disable=SC2034
+while \
+  getopts \
+    't:p:cvh?' \
+    arg; do
+  case \
+    "${arg}" in
+    t) override_target_host="${OPTARG}" ;;
+    p) override_encoder_app="${OPTARG}" ;;
+    c) override_color="y" ;;
+    v) override_quiet="n" ;;
+    h|?) _set_overrides && \
+	 _usage \
+           0 ;;
+    *)
+    _msg_error \
+      "Invalid argument '${arg}'" \
+      0 && \
+    _set_overrides && \
+    _usage \
+      1
+    ;;
+  esac
+done
+shift \
+  $(( \
+    OPTIND - 1 \
+  ))
+(( $# < 2 )) && \
+  _set_overrides && \
+  _usage \
+    1
+in_file="${1}"
+out_file="${2}"
+_set_overrides
+_config_user_init \
+  "$(_get "app" "name")"
+_show_config
+app_opts=(
+  "${target_host}"
+  "${encoder_app}"
+  "${in_file}"
+  "${out_file}"
+)
+_remote_recorder \
+  "${app_opts[@]}"
