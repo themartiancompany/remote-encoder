@@ -130,7 +130,7 @@ _set_overrides() {
     "target" \
     "host" \
     ""
-  if [[ "${target_host}" == "" ]]; then
+  if [[ -n "${target_host}" ]]; then
     _msg_error \
       "You must specify an host."
   fi
@@ -176,7 +176,7 @@ _usage() {
       _usage_text << \
         ENDUSAGETEXT || true
 
-Remote recorder.
+Remote encoder.
 
 Usage:
   $(_get "app" "name")
