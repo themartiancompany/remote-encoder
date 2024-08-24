@@ -99,29 +99,31 @@ _remote_recorder() {
         rsync -- \
       "${_rsync_opts[@]}" \
       "${_in}" \
-      "${_target_host}:${_in_tmp}"
+      "${_target_host}:${_in_tmp}" || \
+      true
     dynssh \
       "${_dynssh_opts[@]}" -- \
       "${_target_host}" \
       "${_encoder[@]}" \
         "${_encoder_opts[@]}" \
         "${_in_tmp}" \
-        "${_tmp}"
+        "${_tmp}" || \
+      true
     dynssh \
       "${_dynssh_opts[@]}" \
       -C \
         rsync -- \
       "${_rsync_opts[@]}" \
       "${_target_host}:${_tmp}" \
-      "${_out}"
+      "${_out}" || \
+      true
     dynssh \
       "${_dynssh_opts[@]}" -- \
       "${_target_host}" \
       rm \
         "${_in_tmp}" \
-        "${_tmp}"
-  _msg_info \
-    "encoding ended, quitting."
+        "${_tmp}" || \
+      true
   elif [[ "${target_host}" == "$(hotnamectl)" ]]; then
     _check_cmd \
       "${_encoder_app}"
@@ -130,6 +132,8 @@ _remote_recorder() {
       "${_in}" \
       "${_out}"
   fi
+  _msg_info \
+    "encoding ended, quitting."
 }
 
 # Set defaults and, if present, overrides
