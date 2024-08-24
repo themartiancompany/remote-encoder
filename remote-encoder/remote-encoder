@@ -90,7 +90,7 @@ _remote_recorder() {
   fi
   _dynssh_options
   "_${_encoder_app}_options"
-  if [[ "${target_host}" != "$(hotnamectl)"]]; then
+  if [[ "${target_host}" != "$(hotnamectl)" ]]; then
     _msg_info \
       "running dynssh with '${_dynssh_opts[*]}'"
     dynssh \
