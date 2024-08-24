@@ -90,37 +90,46 @@ _remote_recorder() {
   fi
   _dynssh_options
   "_${_encoder_app}_options"
-  _msg_info \
-    "running dynssh with '${_dynssh_opts[*]}'"
-  dynssh \
-    "${_dynssh_opts[@]}" \
-    -C \
-      rsync -- \
-    "${_rsync_opts[@]}" \
-    "${_in}" \
-    "${_target_host}:${_in_tmp}"
-  dynssh \
-    "${_dynssh_opts[@]}" -- \
-    "${_target_host}" \
-    "${_encoder[@]}" \
-      "${_encoder_opts[@]}" \
-      "${_in_tmp}" \
-      "${_tmp}"
-  dynssh \
-    "${_dynssh_opts[@]}" \
-    -C \
-      rsync -- \
-    "${_rsync_opts[@]}" \
-    "${_target_host}:${_tmp}" \
-    "${_out}"
-  dynssh \
-    "${_dynssh_opts[@]}" -- \
-    "${_target_host}" \
-    rm \
-      "${_in_tmp}" \
-      "${_tmp}"
+  if [[ "${target_host}" != "$(hotnamectl)"]]; then
+    _msg_info \
+      "running dynssh with '${_dynssh_opts[*]}'"
+    dynssh \
+      "${_dynssh_opts[@]}" \
+      -C \
+        rsync -- \
+      "${_rsync_opts[@]}" \
+      "${_in}" \
+      "${_target_host}:${_in_tmp}"
+    dynssh \
+      "${_dynssh_opts[@]}" -- \
+      "${_target_host}" \
+      "${_encoder[@]}" \
+        "${_encoder_opts[@]}" \
+        "${_in_tmp}" \
+        "${_tmp}"
+    dynssh \
+      "${_dynssh_opts[@]}" \
+      -C \
+        rsync -- \
+      "${_rsync_opts[@]}" \
+      "${_target_host}:${_tmp}" \
+      "${_out}"
+    dynssh \
+      "${_dynssh_opts[@]}" -- \
+      "${_target_host}" \
+      rm \
+        "${_in_tmp}" \
+        "${_tmp}"
   _msg_info \
     "encoding ended, quitting."
+  elif [[ "${target_host}" == "$(hotnamectl)"]]; then
+    _check_cmd \
+      "${_encoder_app}"
+    "${_encoder[@]}" \
+      "${_encoder_opts[@]}" \
+      "${_in}" \
+      "${_out}"
+  fi
 }
 
 # Set defaults and, if present, overrides
@@ -129,11 +138,7 @@ _set_overrides() {
   _set_override \
     "target" \
     "host" \
-    ""
-  if [[ -n "${target_host}" ]]; then
-    _msg_error \
-      "You must specify an host."
-  fi
+    "$(hotnamectl)"
   _set_override \
     "encoding" \
     "date" \
