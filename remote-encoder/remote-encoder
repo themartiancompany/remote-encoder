@@ -122,7 +122,7 @@ _remote_recorder() {
         "${_tmp}"
   _msg_info \
     "encoding ended, quitting."
-  elif [[ "${target_host}" == "$(hotnamectl)"]]; then
+  elif [[ "${target_host}" == "$(hotnamectl)" ]]; then
     _check_cmd \
       "${_encoder_app}"
     "${_encoder[@]}" \
