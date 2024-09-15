@@ -17,11 +17,7 @@ source \
 # are available
 _requirements() {
   _check_cmd \
-    'dynssh' \
-    'dynssh'
-  _check_cmd \
-    'rsync' \
-    'rsync'
+    'dynrsync'
 }
 
 # shellcheck disable=SC2034
@@ -35,13 +31,17 @@ _global_variables() {
   quiet=""
 }
 
-_dynssh_options(){
+_network_options(){
   _dynssh_opts+=(
     -t
       "${_target_host}"
   )
+  _dynrsync_opts+=(
+    -t
+      "${_target_host}"
+  )
   _rsync_opts+=(
-    # -az
+    -az
   )
 }
 
@@ -73,8 +73,9 @@ _remote_recorder() {
     _out="${4}" \
     _encoder_opts=() \
     _encoder=() \
-    _rsync_opts=() \
+    _dynrsync_opts=() \
     _dynssh_opts=() \
+    _rsync_opts=() \
     _in_tmp \
     _tmp
   if [[ "${quiet}" != "y" ]]; then
@@ -84,23 +85,26 @@ _remote_recorder() {
     _dynssh_opts+=(
       -v
     )
+    _dynrsync_opts+=(
+      -v
+    )
     _rsync_opts+=(
       -v
     )
   fi
-  _dynssh_options
+  _network_options
   "_${_encoder_app}_options"
   if [[ "${target_host}" != "$(hotnamectl)" ]]; then
     _msg_info \
-      "running dynssh with '${_dynssh_opts[*]}'"
-    dynssh \
-      "${_dynssh_opts[@]}" \
-      -C \
-        rsync -- \
+      "running dynrsync with '${_dynrsync_opts[*]}'"
+    dynrsync \
+      "${_dynrsync_opts[@]}" -- \
       "${_rsync_opts[@]}" \
       "${_in}" \
       "${_target_host}:${_in_tmp}" || \
       true
+    _msg_info \
+      "running ${_encoder} with options '${_encoder_opts[*]}'"
     dynssh \
       "${_dynssh_opts[@]}" -- \
       "${_target_host}" \
@@ -109,10 +113,10 @@ _remote_recorder() {
         "${_in_tmp}" \
         "${_tmp}" || \
       true
-    dynssh \
-      "${_dynssh_opts[@]}" \
-      -C \
-        rsync -- \
+    _msg_info \
+      "running dynrsync with '${_dynrsync_opts[*]}'"
+    dynrsync \
+      "${_dynrsync_opts[@]}" -- \
       "${_rsync_opts[@]}" \
       "${_target_host}:${_tmp}" \
       "${_out}" || \
@@ -133,7 +137,7 @@ _remote_recorder() {
       "${_out}"
   fi
   _msg_info \
-    "encoding ended, quitting."
+    "encoding complete"
 }
 
 # Set defaults and, if present, overrides
